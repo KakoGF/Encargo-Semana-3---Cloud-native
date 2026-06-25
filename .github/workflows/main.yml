@@ -64,6 +64,10 @@ jobs:
               -e AWS_SESSION_TOKEN=${{ secrets.AWS_SESSION_TOKEN }} \
               -e AWS_REGION=us-east-1 \
               -e S3_BUCKET=${{ secrets.S3_BUCKET }} \
+              -e SECURITY_ENABLED=${{ secrets.SECURITY_ENABLED }} \
+              -e B2C_JWKS_URI=${{ secrets.B2C_JWKS_URI }} \
+              -e B2C_ISSUER=${{ secrets.B2C_ISSUER }} \
+              -e B2C_ROLES_CLAIM=${{ secrets.B2C_ROLES_CLAIM }} \
               -p 8080:8080 \
               ${{ secrets.DOCKERHUB_USERNAME }}/guias-despacho:latest
           ENDSSH

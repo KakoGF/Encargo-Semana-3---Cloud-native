@@ -14,14 +14,6 @@ import cl.duoc.guias.exception.EfsFileNotFoundException;
 import cl.duoc.guias.exception.EfsStorageException;
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * Servicio encargado del almacenamiento TEMPORAL de las guias en el sistema de
- * archivos compartido Amazon EFS, montado en el contenedor sobre la ruta
- * indicada por la propiedad {@code app.efs.path} (por defecto /app/efs).
- *
- * Sigue el mismo patron que {@link AwsS3Service}, pero opera sobre el disco
- * montado (EFS) en lugar de sobre el bucket de S3.
- */
 @Slf4j
 @Service
 public class EfsStorageService {
@@ -32,14 +24,6 @@ public class EfsStorageService {
 		this.rutaEfs = Paths.get(rutaEfs);
 	}
 
-	/**
-	 * Guarda una guia de forma temporal en el EFS.
-	 * (Analogo a AwsS3Service.upload, pero sobre el disco montado)
-	 *
-	 * @param nombreArchivo Nombre del archivo (por ejemplo "guia-123.json")
-	 * @param contenido     Contenido del archivo en bytes
-	 * @return Ruta absoluta donde quedo guardado el archivo
-	 */
 	public String guardarGuiaTemporal(String nombreArchivo, byte[] contenido) {
 
 		Path destino = resolverRutaSegura(nombreArchivo);
@@ -57,10 +41,6 @@ public class EfsStorageService {
 		}
 	}
 
-	/**
-	 * Lee una guia almacenada temporalmente en el EFS.
-	 * (Analogo a AwsS3Service.downloadAsBytes)
-	 */
 	public byte[] leerGuiaTemporal(String nombreArchivo) {
 
 		Path origen = resolverRutaSegura(nombreArchivo);
@@ -77,10 +57,6 @@ public class EfsStorageService {
 		}
 	}
 
-	/**
-	 * Elimina una guia temporal del EFS.
-	 * (Analogo a AwsS3Service.deleteObject)
-	 */
 	public void eliminarGuiaTemporal(String nombreArchivo) {
 
 		Path objetivo = resolverRutaSegura(nombreArchivo);
@@ -97,10 +73,6 @@ public class EfsStorageService {
 		}
 	}
 
-	/**
-	 * Lista los nombres de las guias almacenadas temporalmente en el EFS.
-	 * (Analogo a AwsS3Service.listObjects)
-	 */
 	public List<String> listarGuiasTemporales() {
 
 		try {
@@ -117,18 +89,10 @@ public class EfsStorageService {
 		}
 	}
 
-	/**
-	 * Indica si una guia existe en el EFS.
-	 */
 	public boolean existeGuiaTemporal(String nombreArchivo) {
 		return Files.exists(resolverRutaSegura(nombreArchivo));
 	}
 
-	/**
-	 * Resuelve la ruta de un archivo DENTRO del directorio del EFS, evitando
-	 * ataques de path traversal (por ejemplo "../../etc/passwd" o rutas
-	 * absolutas). 
-	 */
 	private Path resolverRutaSegura(String nombreArchivo) {
 
 		if (nombreArchivo == null || nombreArchivo.isBlank()) {
@@ -148,10 +112,6 @@ public class EfsStorageService {
 		return destino;
 	}
 
-	/**
-	 * Crea el directorio del EFS si no existe (util en entorno local y en el
-	 * primer arranque del contenedor).
-	 */
 	private void asegurarDirectorio() throws IOException {
 		if (!Files.exists(rutaEfs)) {
 			Files.createDirectories(rutaEfs);

@@ -7,9 +7,6 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/**
- * Linea de detalle de una guia de despacho (producto + cantidad).
- */
 @Data
 @AllArgsConstructor
 @NoArgsConstructor

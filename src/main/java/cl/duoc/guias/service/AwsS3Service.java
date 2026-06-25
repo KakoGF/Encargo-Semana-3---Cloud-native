@@ -37,21 +37,10 @@ public class AwsS3Service {
 
 	private final S3Client s3Client;
 
-	/**
-	 * Lista todos los objetos de un bucket de S3
-	 */
 	public List<S3ObjectDto> listObjects(String bucket) {
 		return listObjects(bucket, null);
 	}
 
-	/**
-	 * Lista los objetos de un bucket filtrando por prefijo (carpeta).
-	 * Usado para consultar el historial de guias por fecha/transportista.
-	 *
-	 * @param bucket Nombre del bucket
-	 * @param prefix Prefijo de la clave (por ejemplo "20211/transportistaX/")
-	 * @return Lista de objetos que cuelgan de ese prefijo
-	 */
 	public List<S3ObjectDto> listObjects(String bucket, String prefix) {
 
 		try {
@@ -81,9 +70,6 @@ public class AwsS3Service {
 		}
 	}
 
-	/**
-	 * Descarga un objeto de S3 como array de bytes
-	 */
 	public byte[] downloadAsBytes(String bucket, String key) {
 
 		try {
@@ -109,9 +95,6 @@ public class AwsS3Service {
 		}
 	}
 
-	/**
-	 * Sube un archivo (MultipartFile) a S3
-	 */
 	public void upload(String bucket, String key, MultipartFile file) {
 
 		if (file == null || file.isEmpty()) {
@@ -146,15 +129,6 @@ public class AwsS3Service {
 		}
 	}
 
-	/**
-	 * Sube un arreglo de bytes a S3. Se usa para subir la guia que se genero
-	 * primero en el EFS (leida desde disco como byte[]).
-	 *
-	 * @param bucket      Nombre del bucket
-	 * @param key         Clave del objeto (por ejemplo "20211/transportistaX/guia123.json")
-	 * @param contenido   Contenido del archivo en bytes
-	 * @param contentType Tipo MIME (por ejemplo "application/json")
-	 */
 	public void uploadBytes(String bucket, String key, byte[] contenido, String contentType) {
 
 		if (contenido == null || contenido.length == 0) {
@@ -181,9 +155,6 @@ public class AwsS3Service {
 		}
 	}
 
-	/**
-	 * Mueve un objeto dentro del mismo bucket (copiar + borrar)
-	 */
 	public void moveObject(String bucket, String sourceKey, String destKey) {
 
 		try {
@@ -212,9 +183,6 @@ public class AwsS3Service {
 		}
 	}
 
-	/**
-	 * Elimina un objeto de S3
-	 */
 	public void deleteObject(String bucket, String key) {
 
 		try {

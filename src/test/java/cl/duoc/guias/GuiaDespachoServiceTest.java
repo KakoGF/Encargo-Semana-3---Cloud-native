@@ -30,10 +30,6 @@ import cl.duoc.guias.service.AwsS3Service;
 import cl.duoc.guias.service.EfsStorageService;
 import cl.duoc.guias.service.GuiaDespachoService;
 
-/**
- * Tests de la logica de negocio de {@link GuiaDespachoService} usando mocks de
- * la capa EFS y S3 (no se requieren credenciales ni AWS real).
- */
 @ExtendWith(MockitoExtension.class)
 class GuiaDespachoServiceTest {
 
@@ -68,7 +64,7 @@ class GuiaDespachoServiceTest {
 
 		assertEquals("guia-123.json", resp.getNombreArchivo());
 		assertEquals("20211/transportistaX/guia-123.json", resp.getKeyS3());
-		// Sincronizado: crear escribe en EFS y sube a S3 en la misma operacion
+
 		verify(efs).guardarGuiaTemporal(eq("guia-123.json"), any(byte[].class));
 		verify(s3).uploadBytes(eq("test-bucket"),
 				eq("20211/transportistaX/guia-123.json"), any(byte[].class), eq("application/json"));
@@ -103,8 +99,7 @@ class GuiaDespachoServiceTest {
 
 	@Test
 	void descargarGuia_conNombreMalicioso_lanza400_yNoLlamaAS3() {
-		// Cubre a la vez path traversal y header injection: el nombre no llega
-		// ni a la key de S3 ni a la cabecera Content-Disposition.
+
 		assertThrows(DatosGuiaInvalidosException.class,
 				() -> service.descargarGuia("transportistaX", "20211", "../../secret.txt"));
 		verifyNoInteractions(s3);
@@ -131,7 +126,7 @@ class GuiaDespachoServiceTest {
 	@Test
 	void eliminarGuia_borraDeS3YDelEfs() {
 		service.eliminarGuia("transportistaX", "20211", "guia-1001.json");
-		// Sincronizado: el borrado afecta a ambos almacenamientos
+
 		verify(s3).deleteObject("test-bucket", "20211/transportistaX/guia-1001.json");
 		verify(efs).eliminarGuiaTemporal("guia-1001.json");
 	}

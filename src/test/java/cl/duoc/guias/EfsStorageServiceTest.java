@@ -16,10 +16,6 @@ import cl.duoc.guias.exception.EfsFileNotFoundException;
 import cl.duoc.guias.exception.EfsStorageException;
 import cl.duoc.guias.service.EfsStorageService;
 
-/**
- * Tests de {@link EfsStorageService} sobre un directorio temporal real.
- * Incluye la verificacion del fix de path traversal.
- */
 class EfsStorageServiceTest {
 
 	@TempDir

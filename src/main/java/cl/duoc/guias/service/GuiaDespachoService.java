@@ -25,11 +25,6 @@ import cl.duoc.guias.exception.S3UploadException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * Servicio de negocio que coordina el ciclo de vida de una guia de despacho
- * (crear en EFS, subir a S3, descargar, actualizar, eliminar y consultar).
- * Reutiliza {@link AwsS3Service} y la nueva {@link EfsStorageService}.
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -42,14 +37,10 @@ public class GuiaDespachoService {
 	@Value("${aws.s3.bucket}")
 	private String bucket;
 
-	/** Numero de guia: solo letras, numeros, guion y guion bajo. */
 	private static final Pattern NUMERO_VALIDO = Pattern.compile("^[A-Za-z0-9_-]+$");
-	/** Nombre de archivo: ademas admite el punto de la extension (nunca "..", "/" ni "\\"). */
+
 	private static final Pattern NOMBRE_ARCHIVO_VALIDO = Pattern.compile("^[A-Za-z0-9._-]+$");
 
-	/**
-	 * Crea una guia: genera el archivo JSON y lo guarda temporalmente en el EFS.
-	 */
 	public GuiaResponse crearGuia(GuiaDespachoRequest request) {
 
 		String numeroGuia;
@@ -64,9 +55,6 @@ public class GuiaDespachoService {
 		byte[] contenido = serializarGuia(numeroGuia, request);
 		String keyS3 = construirKey(request.getFecha(), request.getTransportista(), nombreArchivo);
 
-		// 1) Guarda en el EFS y 2) sube a S3 en la misma operacion (sincronizado).
-		// Se escribe primero el EFS; si la subida a S3 falla, se revierte el archivo
-		// del EFS para que ambos almacenamientos queden consistentes.
 		efsStorageService.guardarGuiaTemporal(nombreArchivo, contenido);
 		try {
 			awsS3Service.uploadBytes(bucket, keyS3, contenido, "application/json");
@@ -87,10 +75,6 @@ public class GuiaDespachoService {
 				.build();
 	}
 
-	/**
-	 * Sube a S3 una guia previamente generada en el EFS, organizada en la
-	 * carpeta fecha/transportista/.
-	 */
 	public GuiaResponse subirGuiaAS3(String nombreArchivo, String transportista, String fecha) {
 
 		validarNombreArchivo(nombreArchivo);
@@ -111,10 +95,6 @@ public class GuiaDespachoService {
 				.build();
 	}
 
-	/**
-	 * Sube un archivo cualquiera (multipart) y lo deja sincronizado en el EFS y
-	 * en S3, bajo la carpeta fecha/transportista/. 
-	 */
 	public GuiaResponse subirArchivo(MultipartFile file, String transportista, String fecha) {
 
 		if (file == null || file.isEmpty()) {
@@ -134,7 +114,6 @@ public class GuiaDespachoService {
 		String keyS3 = construirKey(fecha, transportista, nombreArchivo);
 		String contentType = file.getContentType() != null ? file.getContentType() : "application/octet-stream";
 
-		// EFS + S3 sincronizado, con rollback del EFS si la subida a S3 falla
 		efsStorageService.guardarGuiaTemporal(nombreArchivo, contenido);
 		try {
 			awsS3Service.uploadBytes(bucket, keyS3, contenido, contentType);
@@ -154,19 +133,12 @@ public class GuiaDespachoService {
 				.build();
 	}
 
-	/**
-	 * Descarga una guia desde S3. 
-	 */
 	public byte[] descargarGuia(String transportista, String fecha, String nombreArchivo) {
 		validarNombreArchivo(nombreArchivo);
 		String keyS3 = construirKey(fecha, transportista, nombreArchivo);
 		return awsS3Service.downloadAsBytes(bucket, keyS3);
 	}
 
-	/**
-	 * Actualiza una guia existente: regenera el archivo en EFS y lo vuelve a
-	 * subir a S3 sobreescribiendo la misma key.
-	 */
 	public GuiaResponse actualizarGuia(GuiaDespachoRequest request) {
 
 		if (request.getNumeroGuia() == null || request.getNumeroGuia().isBlank()) {
@@ -177,10 +149,8 @@ public class GuiaDespachoService {
 		String nombreArchivo = "guia-" + request.getNumeroGuia() + ".json";
 		byte[] contenido = serializarGuia(request.getNumeroGuia(), request);
 
-		// 1) Regenera el archivo en el EFS
 		efsStorageService.guardarGuiaTemporal(nombreArchivo, contenido);
 
-		// 2) Lo vuelve a subir a S3 (misma key => sobreescribe)
 		String keyS3 = construirKey(request.getFecha(), request.getTransportista(), nombreArchivo);
 		awsS3Service.uploadBytes(bucket, keyS3, contenido, "application/json");
 
@@ -196,44 +166,29 @@ public class GuiaDespachoService {
 				.build();
 	}
 
-	/**
-	 * Elimina una guia especifica desde S3 y desde el EFS (sincronizado).
-	 */
 	public void eliminarGuia(String transportista, String fecha, String nombreArchivo) {
 		validarNombreArchivo(nombreArchivo);
 		String keyS3 = construirKey(fecha, transportista, nombreArchivo);
 
-		// Borra en ambos almacenamientos para mantenerlos sincronizados.
 		awsS3Service.deleteObject(bucket, keyS3);
 		efsStorageService.eliminarGuiaTemporal(nombreArchivo);
 
 		log.info("Guia eliminada de S3 y del EFS: {} (key S3: {})", nombreArchivo, keyS3);
 	}
 
-	/**
-	 * Consulta el historial de guias en S3, filtrando por transportista y fecha.
-	 * El filtro se traduce a un prefijo de S3: fecha/transportista/.
-	 */
 	public List<S3ObjectDto> consultarGuias(String fecha, String transportista) {
 		String prefijo = construirPrefijo(fecha, transportista);
 		return awsS3Service.listObjects(bucket, prefijo);
 	}
 
-	/**
-	 * Lista las guias que estan temporalmente en el EFS (apoyo para la demo).
-	 */
 	public List<String> listarGuiasEnEfs() {
 		return efsStorageService.listarGuiasTemporales();
 	}
 
-	// ===================== Helpers =====================
-
-	/** Clave de S3 con forma fecha/transportista/archivo. */
 	private String construirKey(String fecha, String transportista, String nombreArchivo) {
 		return fecha + "/" + transportista + "/" + nombreArchivo;
 	}
 
-	/** Prefijo de busqueda para el historial (por fecha o fecha+transportista). */
 	private String construirPrefijo(String fecha, String transportista) {
 		StringBuilder prefijo = new StringBuilder();
 		if (fecha != null && !fecha.isBlank()) {
@@ -264,7 +219,6 @@ public class GuiaDespachoService {
 		return LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
 	}
 
-	/** Serializa los datos de la guia a un documento JSON. */
 	private byte[] serializarGuia(String numeroGuia, GuiaDespachoRequest request) {
 		Map<String, Object> guia = new LinkedHashMap<>();
 		guia.put("numeroGuia", numeroGuia);

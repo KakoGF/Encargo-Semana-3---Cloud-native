@@ -78,8 +78,6 @@ public class GlobalExceptionHandler {
 		return build(HttpStatus.BAD_REQUEST, "Datos de guia invalidos", ex.getMessage(), null, request);
 	}
 
-	// ===== Excepciones propias del EFS =====
-
 	@ExceptionHandler(EfsFileNotFoundException.class)
 	public ResponseEntity<ErrorResponse> handleEfsFileNotFoundException(EfsFileNotFoundException ex, WebRequest request) {
 		log.error("Guia no encontrada en EFS: {}", ex.getMessage());
@@ -92,8 +90,6 @@ public class GlobalExceptionHandler {
 		return build(HttpStatus.INTERNAL_SERVER_ERROR, "EFS Storage Error", ex.getMessage(),
 				"Verifique que el EFS este montado correctamente en la ruta configurada", request);
 	}
-
-	// ===== Validacion de los DTO de entrada =====
 
 	@ExceptionHandler(MethodArgumentNotValidException.class)
 	public ResponseEntity<ErrorResponse> handleValidationException(MethodArgumentNotValidException ex, WebRequest request) {
