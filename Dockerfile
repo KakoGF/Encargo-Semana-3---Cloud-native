@@ -18,4 +18,4 @@ RUN mkdir -p /app/efs
 
 CMD ["java", "-jar", "/app/app.jar"]
 
-# Comentario para despliegue
+# Comentario para despliegue final en AWS EFS
