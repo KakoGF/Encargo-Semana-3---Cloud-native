@@ -17,3 +17,5 @@ EXPOSE 8080
 RUN mkdir -p /app/efs
 
 CMD ["java", "-jar", "/app/app.jar"]
+
+# Comentario para despliegue
