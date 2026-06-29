@@ -2,6 +2,10 @@ package cl.duoc.guias.config;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -14,7 +18,10 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2Error;
+import org.springframework.security.oauth2.core.OAuth2ErrorCodes;
 import org.springframework.security.oauth2.core.OAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtValidators;
@@ -46,8 +53,8 @@ public class SecurityConfig {
         @Value("${app.security.jwks-uri}")
         private String jwksUri;
 
-        @Value("${app.security.issuer}")
-        private String issuer;
+        @Value("${app.security.issuers}")
+        private List<String> issuers;
 
         @Value("${app.security.roles-claim}")
         private String rolesClaim;
@@ -75,10 +82,37 @@ public class SecurityConfig {
         @Bean
         JwtDecoder jwtDecoder() {
             NimbusJwtDecoder decoder = NimbusJwtDecoder.withJwkSetUri(jwksUri).build();
-            OAuth2TokenValidator<Jwt> validadorIssuer = JwtValidators.createDefaultWithIssuer(issuer);
-            OAuth2TokenValidator<Jwt> validador = new DelegatingOAuth2TokenValidator<>(validadorIssuer);
+            OAuth2TokenValidator<Jwt> validadorTimestamp = JwtValidators.createDefault();
+            OAuth2TokenValidator<Jwt> validadorIssuers = validadorDeIssuers();
+            OAuth2TokenValidator<Jwt> validador =
+                    new DelegatingOAuth2TokenValidator<>(validadorTimestamp, validadorIssuers);
             decoder.setJwtValidator(validador);
             return decoder;
+        }
+
+        private OAuth2TokenValidator<Jwt> validadorDeIssuers() {
+            Set<String> permitidos = issuers.stream()
+                    .filter(valor -> valor != null && !valor.isBlank())
+                    .map(this::normalizar)
+                    .collect(Collectors.toCollection(HashSet::new));
+            OAuth2Error error = new OAuth2Error(OAuth2ErrorCodes.INVALID_TOKEN,
+                    "El issuer del token no esta dentro de los issuers permitidos", null);
+            return jwt -> {
+                Object valor = jwt.getIssuer();
+                String iss = valor != null ? normalizar(valor.toString()) : null;
+                if (iss != null && permitidos.contains(iss)) {
+                    return OAuth2TokenValidatorResult.success();
+                }
+                return OAuth2TokenValidatorResult.failure(error);
+            };
+        }
+
+        private String normalizar(String valor) {
+            String limpio = valor.trim();
+            if (limpio.endsWith("/")) {
+                return limpio.substring(0, limpio.length() - 1);
+            }
+            return limpio;
         }
 
         private JwtAuthenticationConverter convertidorJwt() {
