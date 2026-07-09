@@ -29,6 +29,7 @@ import cl.duoc.guias.exception.DatosGuiaInvalidosException;
 import cl.duoc.guias.service.AwsS3Service;
 import cl.duoc.guias.service.EfsStorageService;
 import cl.duoc.guias.service.GuiaDespachoService;
+import cl.duoc.guias.service.GuiaProductorService;
 
 @ExtendWith(MockitoExtension.class)
 class GuiaDespachoServiceTest {
@@ -39,11 +40,14 @@ class GuiaDespachoServiceTest {
 	@Mock
 	AwsS3Service s3;
 
+	@Mock
+	GuiaProductorService guiaProductorService;
+
 	GuiaDespachoService service;
 
 	@BeforeEach
 	void setUp() {
-		service = new GuiaDespachoService(efs, s3, new ObjectMapper());
+		service = new GuiaDespachoService(efs, s3, new ObjectMapper(), guiaProductorService);
 		ReflectionTestUtils.setField(service, "bucket", "test-bucket");
 	}
 
