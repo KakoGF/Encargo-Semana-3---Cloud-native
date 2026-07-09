@@ -46,6 +46,23 @@
 			<artifactId>spring-cloud-aws-starter-s3</artifactId>
 		</dependency>
 
+		<!-- RabbitMQ: mensajeria asincrona con colas -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-amqp</artifactId>
+		</dependency>
+
+		<!-- Persistencia JPA + H2 para la tabla del consumidor -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-jpa</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.h2database</groupId>
+			<artifactId>h2</artifactId>
+			<scope>runtime</scope>
+		</dependency>
+
 		<!-- Seguridad: validacion de JWT emitidos por Azure AD B2C (IDaaS) -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

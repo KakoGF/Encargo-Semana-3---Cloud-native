@@ -15,8 +15,10 @@ import org.springframework.web.multipart.MultipartFile;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import cl.duoc.guias.dto.GuiaDespachoMessage;
 import cl.duoc.guias.dto.GuiaDespachoRequest;
 import cl.duoc.guias.dto.GuiaResponse;
+import cl.duoc.guias.dto.ItemGuia;
 import cl.duoc.guias.dto.S3ObjectDto;
 import cl.duoc.guias.exception.DatosGuiaInvalidosException;
 import cl.duoc.guias.exception.InvalidFileException;
@@ -33,6 +35,7 @@ public class GuiaDespachoService {
 	private final EfsStorageService efsStorageService;
 	private final AwsS3Service awsS3Service;
 	private final ObjectMapper objectMapper;
+	private final GuiaProductorService guiaProductorService;
 
 	@Value("${aws.s3.bucket}")
 	private String bucket;
@@ -64,6 +67,8 @@ public class GuiaDespachoService {
 		}
 
 		log.info("Guia {} creada en EFS y subida a S3 con key: {}", numeroGuia, keyS3);
+
+		publicarResumen(numeroGuia, nombreArchivo, keyS3, request);
 
 		return GuiaResponse.builder()
 				.numeroGuia(numeroGuia)
@@ -217,6 +222,27 @@ public class GuiaDespachoService {
 
 	private String generarNumeroGuia() {
 		return LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+	}
+
+	private void publicarResumen(String numeroGuia, String nombreArchivo, String keyS3, GuiaDespachoRequest request) {
+		try {
+			int totalProductos = request.getProductos().stream()
+					.mapToInt(ItemGuia::getCantidad)
+					.sum();
+			GuiaDespachoMessage mensaje = new GuiaDespachoMessage(
+					numeroGuia,
+					request.getTransportista(),
+					request.getFecha(),
+					request.getDestinatario(),
+					request.getDireccionDespacho(),
+					totalProductos,
+					nombreArchivo,
+					keyS3,
+					LocalDateTime.now().toString());
+			guiaProductorService.enviarResumen(mensaje);
+		} catch (RuntimeException e) {
+			log.error("No fue posible publicar el resumen de la guia {} en la cola: {}", numeroGuia, e.getMessage());
+		}
 	}
 
 	private byte[] serializarGuia(String numeroGuia, GuiaDespachoRequest request) {

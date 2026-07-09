@@ -55,9 +55,24 @@ jobs:
         run: |
           ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${{ secrets.USER_SERVER }}@${{ secrets.EC2_HOST }} << 'ENDSSH'
             echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
+
+            if [ -z "$(docker ps -aq -f name=^rabbitmq$)" ]; then
+              docker run -d --name rabbitmq \
+                -p 5672:5672 -p 15672:15672 \
+                -e RABBITMQ_DEFAULT_USER=${{ secrets.RABBITMQ_USERNAME }} \
+                -e RABBITMQ_DEFAULT_PASS=${{ secrets.RABBITMQ_PASSWORD }} \
+                --restart unless-stopped \
+                rabbitmq:3-management
+            else
+              docker start rabbitmq || true
+            fi
+
+            sleep 15
+
             docker pull ${{ secrets.DOCKERHUB_USERNAME }}/guias-despacho:latest
             docker stop guias-despacho || true && docker rm guias-despacho || true
             docker run -d --name guias-despacho \
+              --network host \
               -v /mnt/efs:/app/efs \
               -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
               -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
@@ -66,8 +81,11 @@ jobs:
               -e S3_BUCKET=${{ secrets.S3_BUCKET }} \
               -e SECURITY_ENABLED=${{ secrets.SECURITY_ENABLED }} \
               -e B2C_JWKS_URI=${{ secrets.B2C_JWKS_URI }} \
-              -e B2C_ISSUERS=${{ secrets.B2C_ISSUERS }} \
+              -e B2C_ISSUER=${{ secrets.B2C_ISSUER }} \
               -e B2C_ROLES_CLAIM=${{ secrets.B2C_ROLES_CLAIM }} \
-              -p 8080:8080 \
+              -e RABBITMQ_HOST=localhost \
+              -e RABBITMQ_PORT=5672 \
+              -e RABBITMQ_USERNAME=${{ secrets.RABBITMQ_USERNAME }} \
+              -e RABBITMQ_PASSWORD=${{ secrets.RABBITMQ_PASSWORD }} \
               ${{ secrets.DOCKERHUB_USERNAME }}/guias-despacho:latest
           ENDSSH
